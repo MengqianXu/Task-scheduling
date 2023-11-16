@@ -1,16 +1,51 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include "Graph.h"
 
 
-struct Graph* initializeGraph(int vertices) {
-    struct Graph* graph = (struct Graph*)malloc(sizeof(struct Graph));
-    graph->vertices = vertices;
+// tu 解决分配内存和泄漏问题
+void* allocateMemory(size_t size) {
+    void* ptr = malloc(size);
+    if (ptr == NULL) {
+        printf("Memory allocation failed.\n");
+    }
+    return ptr;
+}
 
-    
-    graph->adjacencyMatrix = (int**)malloc(vertices * sizeof(int*));
+struct Graph* initializeGraph(int vertices) {
+    struct Graph* graph = allocateMemory(sizeof(struct Graph));
+    if (graph == NULL) { // tu
+        return NULL;
+    }
+
+    graph->vertices = vertices; 
+
+    graph->tasks = allocateMemory(vertices * sizeof(struct Task*)); // tu
+    if (graph->tasks == NULL) {
+        free(graph);
+        return NULL;
+    }
+
+    graph->adjacencyMatrix = allocateMemory(vertices * sizeof(int*));
+    if (graph->adjacencyMatrix == NULL) { // tu
+        free(graph->tasks);
+        free(graph);
+        return NULL;
+    }
+
     for (int i = 0; i < vertices; ++i) {
-        graph->adjacencyMatrix[i] = (int*)malloc(vertices * sizeof(int));
+        graph->adjacencyMatrix[i] = allocateMemory(vertices * sizeof(int));
+        if (graph->adjacencyMatrix[i] == NULL) { // tu
+            for (int j = 0; j < i; ++j) {
+                free(graph->adjacencyMatrix[j]);
+            }
+            free(graph->adjacencyMatrix);
+            free(graph->tasks);
+            free(graph);
+            return NULL;
+        }
+        
         for (int j = 0; j < vertices; ++j) {
             graph->adjacencyMatrix[i][j] = 0;  // 初始化为0表示没有边
         }
@@ -38,10 +73,11 @@ void printGraph(struct Graph* graph) {
 void freeGraph(struct Graph* graph) {
     for (int i = 0; i < graph->vertices; ++i) {
         free(graph->adjacencyMatrix[i]);
+        free(graph->tasks[i]); // tu
     }
     free(graph->adjacencyMatrix);
+    free(graph->tasks); // tu 释放了任务的内存
     free(graph);
 }
-
 
 
