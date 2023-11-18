@@ -112,6 +112,20 @@ int main() {
     // 进行拓扑排序
     int* result = topologicalSort(myGraph);
 
+    if (result != NULL) {
+        // 打印拓扑排序结果
+        printf("Topological Sort Order: ");
+        for (int i = 0; i < myGraph->vertices; ++i) {
+            printf("%d ", result[i]);
+        }
+        printf("\n");
+
+    } else {
+        // 图中存在环路，无法进行拓扑排序
+        printf("Graph has a cycle. Topological sorting is not possible.\n");
+        freeGraph(myGraph);
+    }
+
     // 创建任务数组
     struct Task* tasks = (struct Task*)malloc(numVertices * sizeof(struct Task));
     for (int i = 0; i < numVertices; ++i) {
@@ -124,6 +138,10 @@ int main() {
 
     // 打印结果
     printf("Total Completion Time: %d\n", totalCompletionTime);
+
+    // 释放图的内存
+    freeGraph(myGraph);
+    free(result);
 
     return 0;
 }
