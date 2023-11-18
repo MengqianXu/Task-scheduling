@@ -46,28 +46,35 @@ int main() {
 
 //TU main
 int main() {
-    // 创建一个图，假设有5个顶点
-    int numVertices = 5;
+    // 创建一个有向图
+    int numVertices = 6;
     struct Graph* myGraph = initializeGraph(numVertices);
 
-    if (myGraph == NULL) {
-        printf("Graph initialization failed.\n");
-        return 1; // 退出程序，表示出错
-    }
-
-    // 添加一些边
-    addEdge(myGraph, 0, 1);
-    addEdge(myGraph, 1, 2);
-    addEdge(myGraph, 2, 3);
-    addEdge(myGraph, 3, 4);
+    // 添加有向边
+    addEdge(myGraph, 5, 2);
+    addEdge(myGraph, 5, 0);
     addEdge(myGraph, 4, 0);
+    addEdge(myGraph, 4, 1);
+    addEdge(myGraph, 2, 3);
+    addEdge(myGraph, 3, 1);
 
-    // 打印邻接矩阵
+    // 打印图的邻接矩阵
     printf("Adjacency Matrix:\n");
     printGraph(myGraph);
 
+    // 进行拓扑排序
+    int* result = topologicalSort(myGraph);
+
+    // 打印拓扑排序结果
+    printf("Topological Sort Order: ");
+    for (int i = 0; i < myGraph->vertices; ++i) {
+        printf("%d ", result[i]);
+    }
+    printf("\n");
+
     // 释放图的内存
     freeGraph(myGraph);
+    free(result);
 
-    return 0; // 表示程序成功执行
+    return 0;
 }
