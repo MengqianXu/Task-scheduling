@@ -50,7 +50,7 @@ void topologicalSortDFS(struct Graph* graph, int v, int* visited, int* stack, in
 
     for (int i = 0; i < graph->vertices; ++i) {
         if (graph->adjacencyMatrix[v][i] == 1 && !visited[i]) { // 检查是否存在一条从当前顶点到邻居顶点的边，且邻居顶点尚未被访问
-            dfs(graph, i, visited, stack, top);
+            topologicalSortDFS(graph, i, visited, stack, top);
         }
     }
 
