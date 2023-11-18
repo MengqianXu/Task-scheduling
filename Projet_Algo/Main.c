@@ -50,7 +50,12 @@ int main() {
     int numVertices = 6;
     struct Graph* myGraph = initializeGraph(numVertices);
 
-    // 添加有向边
+    // test 1:添加有向边，创建环路
+    addEdge(cyclicGraph, 0, 1);
+    addEdge(cyclicGraph, 1, 2);
+    addEdge(cyclicGraph, 2, 0);
+  
+    // test 2:添加有向边,无环路
     addEdge(myGraph, 5, 2);
     addEdge(myGraph, 5, 0);
     addEdge(myGraph, 4, 0);
@@ -65,16 +70,22 @@ int main() {
     // 进行拓扑排序
     int* result = topologicalSort(myGraph);
 
-    // 打印拓扑排序结果
-    printf("Topological Sort Order: ");
-    for (int i = 0; i < myGraph->vertices; ++i) {
-        printf("%d ", result[i]);
-    }
-    printf("\n");
+    if (result != NULL) {
+        // 打印拓扑排序结果
+        printf("Topological Sort Order: ");
+        for (int i = 0; i < myGraph->vertices; ++i) {
+            printf("%d ", result[i]);
+        }
+        printf("\n");
 
-    // 释放图的内存
-    freeGraph(myGraph);
-    free(result);
+        // 释放图的内存
+        freeGraph(myGraph);
+        free(result);
+    } else {
+        // 图中存在环路，无法进行拓扑排序
+        printf("Graph has a cycle. Topological sorting is not possible.\n");
+        freeGraph(myGraph);
+    }
 
     return 0;
 }
