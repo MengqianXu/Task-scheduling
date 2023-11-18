@@ -89,3 +89,42 @@ int main() {
 
     return 0;
 }
+
+
+//TU main 测time
+int main() {
+    // 创建一个有向图
+    int numVertices = 6;
+    struct Graph* myGraph = initializeGraph(numVertices);
+
+    // 添加有向边
+    addEdge(myGraph, 0, 1);
+    addEdge(myGraph, 0, 2);
+    addEdge(myGraph, 1, 3);
+    addEdge(myGraph, 2, 3);
+    addEdge(myGraph, 3, 4);
+    addEdge(myGraph, 4, 5);
+
+    // 打印图的邻接矩阵
+    printf("Adjacency Matrix:\n");
+    printGraph(myGraph);
+
+    // 进行拓扑排序
+    int* result = topologicalSort(myGraph);
+
+    // 创建任务数组
+    struct Task* tasks = (struct Task*)malloc(numVertices * sizeof(struct Task));
+    for (int i = 0; i < numVertices; ++i) {
+        tasks[i].taskNumber = i;
+        tasks[i].executionTime = i + 1; // 假设执行时间为任务编号加1
+    }
+
+    // 计算总完成时间
+    int totalCompletionTime = calculateTotalCompletionTime(myGraph, tasks);
+
+    // 打印结果
+    printf("Total Completion Time: %d\n", totalCompletionTime);
+
+    return 0;
+}
+
