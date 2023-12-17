@@ -14,6 +14,7 @@ struct Task {
     int* dependencies;
     int num_dependencies;
     int start_time;
+    int end_time;
     pthread_mutex_t lock;
 };
 
@@ -23,6 +24,9 @@ struct Graph {
     struct Task** tasks;
     int** adjacencyMatrix;
 };
+
+// 全局图变量
+struct Graph* graph;
 
 // 内存分配函数
 void* allocateMemory(size_t size) {
@@ -66,8 +70,9 @@ struct Task* createTask(int id, int duration, int* dependencies, int num_depende
     task->duration = duration;
     task->dependencies = dependencies;
     task->num_dependencies = num_dependencies;
-    task->start_time = 0;              // 将开始时间初始化为0
-    pthread_mutex_init(&task->lock, NULL);  // 初始化互斥锁
+    task->start_time = 0;
+    task->end_time = 0;
+    pthread_mutex_init(&task->lock, NULL);
     task->dependencies = adjacencyMatrix[id];  // 指向邻接矩阵的一行
 
     return task;
@@ -118,7 +123,7 @@ void* executeTask(void* arg) {
     // 根据依赖关系计算任务开始时间
     for (int i = 0; i < task->num_dependencies; ++i) {
         int dep_id = task->dependencies[i];
-        int dep_end_time = graph->tasks[dep_id]->start_time + graph->tasks[dep_id]->duration;
+        int dep_end_time = graph->tasks[dep_id]->end_time;
         task->start_time = (dep_end_time > task->start_time) ? dep_end_time : task->start_time;
     }
 
@@ -127,16 +132,28 @@ void* executeTask(void* arg) {
     // 模拟任务执行时间
     usleep(task->duration * 1000);
 
+    // 记录结束时间
+    task->end_time = task->start_time + task->duration;
+
     // 任务执行完成后释放互斥锁
     pthread_mutex_unlock(&task->lock);
 
     pthread_exit(NULL);
 }
 
+// 串行执行任务
+void serialExecution(struct Graph* graph) {
+    for (int i = 0; i < graph->vertices; ++i) {
+        pthread_t thread;
+        pthread_create(&thread, NULL, executeTask, (void*)graph->tasks[i]);
+        pthread_join(thread, NULL);
+    }
+}
+
 int main() {
     const int num_tasks = 5;
 
-    struct Graph* graph = initializeGraph(num_tasks);
+    graph = initializeGraph(num_tasks);
 
     // 添加任务
     int dependencies_task1[] = {};       // Task 1 has no dependencies
@@ -153,18 +170,19 @@ int main() {
 
     printGraph(graph);
 
-    // 创建线程
-    pthread_t threads[num_tasks];
+    // 串行执行任务
+    serialExecution(graph);
 
-    // 并行执行任务
+    // 打印任务的执行顺序和总时间
+    int total_time = 0;
     for (int i = 0; i < num_tasks; ++i) {
-        pthread_create(&threads[i], NULL, executeTask, (void*)graph->tasks[i]);
+        printf("任务 %d 的开始时间：%d，结束时间：%d\n", graph->tasks[i]->id, graph->tasks[i]->start_time, graph->tasks[i]->end_time);
+        if (graph->tasks[i]->end_time > total_time) {
+            total_time = graph->tasks[i]->end_time;
+        }
     }
 
-    // 等待所有线程完成
-    for (int i = 0; i < num_tasks; ++i) {
-        pthread_join(threads[i], NULL);
-    }
+    printf("总时间：%d\n", total_time);
 
     // 释放图的内存
     freeGraph(graph);
