@@ -3,10 +3,6 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define NOT_VISITED 0
-#define IN_PROGRESS 1
-#define VISITED 2
-
 // 任务结构体
 struct Task {
     int id;
@@ -16,13 +12,14 @@ struct Task {
     int start_time;
     int end_time;
     pthread_mutex_t lock;
+    pthread_cond_t cond;
+    int num_dependencies_left;
 };
 
 // 图结构体
 struct Graph {
     int vertices;
     struct Task** tasks;
-    int** adjacencyMatrix;
 };
 
 // 全局图变量
@@ -43,17 +40,8 @@ struct Graph* initializeGraph(int vertices) {
     struct Graph* graph = (struct Graph*)allocateMemory(sizeof(struct Graph));
     graph->vertices = vertices;
 
-    // 分配任务数组和邻接矩阵的内存
+    // 分配任务数组的内存
     graph->tasks = (struct Task**)allocateMemory(vertices * sizeof(struct Task*));
-    graph->adjacencyMatrix = (int**)allocateMemory(vertices * sizeof(int*));
-
-    // 初始化邻接矩阵
-    for (int i = 0; i < vertices; ++i) {
-        graph->adjacencyMatrix[i] = (int*)allocateMemory(vertices * sizeof(int));
-        for (int j = 0; j < vertices; ++j) {
-            graph->adjacencyMatrix[i][j] = 0;  // 初始化为0表示没有边
-        }
-    }
 
     // 初始化任务数组
     for (int i = 0; i < vertices; ++i) {
@@ -64,7 +52,7 @@ struct Graph* initializeGraph(int vertices) {
 }
 
 // 任务创建函数
-struct Task* createTask(int id, int duration, int* dependencies, int num_dependencies, int** adjacencyMatrix) {
+struct Task* createTask(int id, int duration, int* dependencies, int num_dependencies) {
     struct Task* task = (struct Task*)allocateMemory(sizeof(struct Task));
     task->id = id;
     task->duration = duration;
@@ -72,22 +60,17 @@ struct Task* createTask(int id, int duration, int* dependencies, int num_depende
     task->num_dependencies = num_dependencies;
     task->start_time = 0;
     task->end_time = 0;
+    task->num_dependencies_left = num_dependencies;
     pthread_mutex_init(&task->lock, NULL);
-    task->dependencies = adjacencyMatrix[id];  // 指向邻接矩阵的一行
+    pthread_cond_init(&task->cond, NULL);
 
     return task;
 }
 
 // 添加任务
 void addTask(struct Graph* graph, int id, int duration, int* dependencies, int num_dependencies) {
-    struct Task* task = createTask(id, duration, dependencies, num_dependencies, graph->adjacencyMatrix);
+    struct Task* task = createTask(id, duration, dependencies, num_dependencies);
     graph->tasks[id] = task;
-
-    // 更新邻接矩阵，表示任务之间的关系
-    for (int i = 0; i < num_dependencies; ++i) {
-        int dep_id = dependencies[i];
-        graph->adjacencyMatrix[dep_id][id] = 1;  // 表示有边
-    }
 }
 
 // 释放图的内存
@@ -95,22 +78,9 @@ void freeGraph(struct Graph* graph) {
     for (int i = 0; i < graph->vertices; ++i) {
         free(graph->tasks[i]->dependencies);
         free(graph->tasks[i]);
-        free(graph->adjacencyMatrix[i]);
     }
     free(graph->tasks);
-    free(graph->adjacencyMatrix);
     free(graph);
-}
-
-// 打印邻接矩阵
-void printGraph(struct Graph* graph) {
-    printf("邻接矩阵：\n");
-    for (int i = 0; i < graph->vertices; ++i) {
-        for (int j = 0; j < graph->vertices; ++j) {
-            printf("%d ", graph->adjacencyMatrix[i][j]);
-        }
-        printf("\n");
-    }
 }
 
 // 线程函数
@@ -120,7 +90,12 @@ void* executeTask(void* arg) {
     // 在执行任务之前获取互斥锁
     pthread_mutex_lock(&task->lock);
 
-    // 根据依赖关系计算任务开始时间
+    // 等待所有依赖的任务完成
+    while (task->num_dependencies_left > 0) {
+        pthread_cond_wait(&task->cond, &task->lock);
+    }
+
+    // 计算任务开始时间
     for (int i = 0; i < task->num_dependencies; ++i) {
         int dep_id = task->dependencies[i];
         int dep_end_time = graph->tasks[dep_id]->end_time;
@@ -128,12 +103,24 @@ void* executeTask(void* arg) {
     }
 
     // 模拟任务执行
-    printf("执行任务 %d，持续时间 %d，开始时间 %d\n", task->id, task->duration, task->start_time);
-    // 模拟任务执行时间
+    printf("执行任务 %d, 持续时间 %d, 开始时间 %d\n", task->id, task->duration, task->start_time);
     usleep(task->duration * 1000);
 
     // 记录结束时间
     task->end_time = task->start_time + task->duration;
+
+    // 通知所有依赖于此任务的任务
+    for (int i = 0; i < graph->vertices; ++i) {
+        struct Task* t = graph->tasks[i];
+        for (int j = 0; j < t->num_dependencies; ++j) {
+            if (t->dependencies[j] == task->id) {
+                pthread_mutex_lock(&t->lock);
+                --t->num_dependencies_left;
+                pthread_cond_signal(&t->cond);
+                pthread_mutex_unlock(&t->lock);
+            }
+        }
+    }
 
     // 任务执行完成后释放互斥锁
     pthread_mutex_unlock(&task->lock);
@@ -141,12 +128,18 @@ void* executeTask(void* arg) {
     pthread_exit(NULL);
 }
 
-// 串行执行任务
-void serialExecution(struct Graph* graph) {
+// 并行执行任务
+void parallelExecution(struct Graph* graph) {
+    pthread_t threads[graph->vertices];
+
+    // 创建一个线程池
     for (int i = 0; i < graph->vertices; ++i) {
-        pthread_t thread;
-        pthread_create(&thread, NULL, executeTask, (void*)graph->tasks[i]);
-        pthread_join(thread, NULL);
+        pthread_create(&threads[i], NULL, executeTask, (void*)graph->tasks[i]);
+    }
+
+    // 等待所有的线程完成
+    for (int i = 0; i < graph->vertices; ++i) {
+        pthread_join(threads[i], NULL);
     }
 }
 
@@ -168,15 +161,13 @@ int main() {
     addTask(graph, 3, 600, dependencies_task4, sizeof(dependencies_task4) / sizeof(int));
     addTask(graph, 4, 200, dependencies_task5, sizeof(dependencies_task5) / sizeof(int));
 
-    printGraph(graph);
-
-    // 串行执行任务
-    serialExecution(graph);
+    // 并行执行任务
+    parallelExecution(graph);
 
     // 打印任务的执行顺序和总时间
     int total_time = 0;
     for (int i = 0; i < num_tasks; ++i) {
-        printf("任务 %d 的开始时间：%d，结束时间：%d\n", graph->tasks[i]->id, graph->tasks[i]->start_time, graph->tasks[i]->end_time);
+        printf("任务 %d 的开始时间：%d, 结束时间:%d\n", graph->tasks[i]->id, graph->tasks[i]->start_time, graph->tasks[i]->end_time);
         if (graph->tasks[i]->end_time > total_time) {
             total_time = graph->tasks[i]->end_time;
         }
