@@ -180,3 +180,154 @@ int main() {
 
     return 0;
 }
+
+//含拓扑排序和动态规划版
+// 任务结构体
+struct Task {
+    int id;
+    int duration;
+    int* dependencies;
+    int num_dependencies;
+    int start_time;
+    int end_time;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+    int num_dependencies_left;
+};
+
+// 图结构体
+struct Graph {
+    int vertices;
+    struct Task** tasks;
+    int* inDegree; // 入度数组
+};
+
+// 全局图变量
+struct Graph* graph;
+
+// 内存分配函数
+void* allocateMemory(size_t size) {
+    void* ptr = malloc(size);
+    if (ptr == NULL) {
+        printf("内存分配失败。\n");
+        exit(EXIT_FAILURE);
+    }
+    return ptr;
+}
+
+// 初始化图
+struct Graph* initializeGraph(int vertices) {
+    struct Graph* graph = (struct Graph*)allocateMemory(sizeof(struct Graph));
+    graph->vertices = vertices;
+
+    // 分配任务数组和入度数组的内存
+    graph->tasks = (struct Task**)allocateMemory(vertices * sizeof(struct Task*));
+    graph->inDegree = (int*)allocateMemory(vertices * sizeof(int));
+
+    // 初始化任务数组和入度数组
+    for (int i = 0; i < vertices; ++i) {
+        graph->tasks[i] = NULL;  // 将任务数组初始化为NULL
+        graph->inDegree[i] = 0;  // 将入度数组初始化为0
+    }
+
+    return graph;
+}
+
+// 任务创建函数
+struct Task* createTask(int id, int duration, int* dependencies, int num_dependencies) {
+    struct Task* task = (struct Task*)allocateMemory(sizeof(struct Task));
+    task->id = id;
+    task->duration = duration;
+    task->dependencies = dependencies;
+    task->num_dependencies = num_dependencies;
+    task->start_time = 0;
+    task->end_time = 0;
+    task->num_dependencies_left = num_dependencies;
+    pthread_mutex_init(&task->lock, NULL);
+    pthread_cond_init(&task->cond, NULL);
+
+    return task;
+}
+
+// 添加任务
+void addTask(struct Graph* graph, int id, int duration, int* dependencies, int num_dependencies) {
+    struct Task* task = createTask(id, duration, dependencies, num_dependencies);
+    graph->tasks[id] = task;
+
+    // 更新入度数组
+    for (int i = 0; i < num_dependencies; ++i) {
+        int dep_id = dependencies[i];
+        graph->inDegree[dep_id]++;
+    }
+}
+
+// 释放图的内存
+void freeGraph(struct Graph* graph) {
+    for (int i = 0; i < graph->vertices; ++i) {
+        free(graph->tasks[i]->dependencies);
+        free(graph->tasks[i]);
+    }
+    free(graph->tasks);
+    free(graph->inDegree);
+    free(graph);
+}
+
+// 线程函数
+void* executeTask(void* arg) {
+    struct Task* task = (struct Task*)arg;
+
+    // 在执行任务之前获取互斥锁
+    pthread_mutex_lock(&task->lock);
+
+    // 等待所有依赖的任务完成
+    while (task->num_dependencies_left > 0) {
+        pthread_cond_wait(&task->cond, &task->lock);
+    }
+
+    // 计算任务开始时间
+    for (int i = 0; i < task->num_dependencies; ++i) {
+        int dep_id = task->dependencies[i];
+        int dep_end_time = graph->tasks[dep_id]->end_time;
+        task->start_time = (dep_end_time > task->start_time) ? dep_end_time : task->start_time;
+    }
+
+    // 模拟任务执行
+    printf("执行任务 %d, 持续时间 %d, 开始时间 %d\n", task->id, task->duration, task->start_time);
+    usleep(task->duration * 1000);
+
+    // 记录结束时间
+    task->end_time = task->start_time + task->duration;
+
+    // 通知所有依赖于此任务的任务
+    for (int i = 0; i < graph->vertices; ++i) {
+        struct Task* t = graph->tasks[i];
+        for (int j = 0; j < t->num_dependencies; ++j) {
+            if (t->dependencies[j] == task->id) {
+                pthread_mutex_lock(&t->lock);
+                --t->num_dependencies_left;
+                pthread_cond_signal(&t->cond);
+                pthread_mutex_unlock(&t->lock);
+            }
+        }
+    }
+
+    // 任务执行完成后释放互斥锁
+    pthread_mutex_unlock(&task->lock);
+
+    pthread_exit(NULL);
+}
+
+// 并行执行任务
+void parallelExecution(struct Graph* graph) {
+    pthread_t threads[graph->vertices];
+
+    // 创建一个线程池
+    for (int i = 0; i < graph->vertices; ++i) {
+        pthread_create(&threads[i], NULL, executeTask, (void*)graph->tasks[i]);
+    }
+
+    // 等待所有的线程完成
+    for (int i = 0; i < graph->vertices; ++i) {
+        pthread_join(threads[i], NULL);
+    }
+}
