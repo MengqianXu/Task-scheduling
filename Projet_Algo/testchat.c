@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <time.h>  // 需要包含这个头文件来使用time函数
+#include <string.h>
 
 // 任务结构体
 struct Task {
@@ -181,6 +183,12 @@ int main() {
     return 0;
 }
 
+
+
+
+
+
+
 //含拓扑排序和动态规划版
 // 任务结构体
 struct Task {
@@ -331,3 +339,59 @@ void parallelExecution(struct Graph* graph) {
         pthread_join(threads[i], NULL);
     }
 }
+
+
+
+
+
+
+//运行100个任务的main函数
+int main() {
+    const int num_tasks = 100;
+
+    // 初始化随机数生成器
+    srand(time(NULL));
+
+    graph = initializeGraph(num_tasks);
+
+    // 添加任务
+    for (int i = 0; i < num_tasks; ++i) {
+        int duration = 300;
+        int dependencies[num_tasks];
+        int num_dependencies = 0;
+
+        for (int j = 0; j < i; ++j) {
+            // 对于每个先前的任务，有50%的概率将其添加为依赖关系
+            if (rand() % 2) {
+                dependencies[num_dependencies] = j;
+                num_dependencies++;
+            }
+        }
+
+        // 使用动态分配的数组来存储依赖关系
+        int* dependencies_copy = (int*)allocateMemory(num_dependencies * sizeof(int));
+        memcpy(dependencies_copy, dependencies, num_dependencies * sizeof(int));
+
+        addTask(graph, i, duration, dependencies_copy, num_dependencies);
+    }
+
+    // 并行执行任务
+    parallelExecution(graph);
+
+    // 打印任务的执行顺序和总时间
+    int total_time = 0;
+    for (int i = 0; i < num_tasks; ++i) {
+        printf("任务 %d 的开始时间：%d, 结束时间:%d\n", graph->tasks[i]->id, graph->tasks[i]->start_time, graph->tasks[i]->end_time);
+        if (graph->tasks[i]->end_time > total_time) {
+            total_time = graph->tasks[i]->end_time;
+        }
+    }
+
+    printf("总时间：%d\n", total_time);
+
+    // 释放图的内存
+    freeGraph(graph);
+
+    return 0;
+}
+
