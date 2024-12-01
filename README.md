@@ -1,60 +1,69 @@
-\documentclass[a4paper,12pt]{article}
-\usepackage[utf8]{inputenc}
-\usepackage{geometry}
-\geometry{a4paper, margin=1in}
-\usepackage{hyperref}
+# Task Scheduling System
 
-\title{Task Scheduling Project}
-\author{}
-\date{}
+## Overview
 
-\begin{document}
+This project implements a task scheduling system using a Directed Acyclic Graph (DAG) representation. Tasks have dependencies and durations, and they are executed respecting these dependencies and their earliest start times. The system utilizes multithreading to optimize task execution.
 
-\maketitle
+---
 
-\section*{Overview}
-This project implements a task scheduling system using a Directed Acyclic Graph (DAG) representation. Tasks have dependencies, durations, and are executed based on their dependencies and earliest start times. The system employs multithreading for task execution.
+## Features
 
-\section*{Files}
-\begin{enumerate}
-    \item \textbf{Graph.h}:
-    Defines the structure for a directed graph.
-    
-    \item \textbf{Task.h}:
-    Defines the structure for a task and functions to create and execute tasks.
-    
-    \item \textbf{TopoSort\_Dynamique.h}:
-    Defines functions for topological sorting, calculating earliest start times, and dynamic thread allocation.
-    
-    \item \textbf{Graph.c}:
-    Implementation of functions related to the graph structure. Includes functions for initializing and freeing graph memory.
-    
-    \item \textbf{Task.c}:
-    Implementation of functions related to task creation and execution. Functions for creating tasks, adding tasks to the graph, and executing tasks in a multithreaded environment.
-    
-    \item \textbf{TopoSort\_Dynamique.c}:
-    Implementation of functions for topological sorting, earliest start time calculation, and dynamic thread allocation.
-    
-    \item \textbf{Main.c}:
-    The main program that initializes tasks, performs topological sorting, calculates earliest start times, dynamically allocates threads, executes tasks, and prints the results. It demonstrates the usage of the implemented system.
-\end{enumerate}
+- **Directed Acyclic Graph Representation**:
+  - Models task dependencies efficiently.
+- **Topological Sorting**:
+  - Orders tasks while respecting their dependencies.
+- **Dynamic Thread Allocation**:
+  - Enables multithreaded execution for optimized scheduling.
+- **Earliest Start Time Calculation**:
+  - Ensures tasks are executed as early as dependencies allow.
 
-\section*{How to Use}
-\begin{enumerate}
-    \item Compile the code using a C compiler, for example:
-    \begin{verbatim}
-    gcc Main.c -o task_scheduler
-    \end{verbatim}
-    
-    \item Run the executable:
-    \begin{verbatim}
-    ./task_scheduler
-    \end{verbatim}
-    
-    \item Adjust the parameters in the \texttt{main()} function of \texttt{Main.c} to customize the number of tasks, threads, and other properties.
-\end{enumerate}
+---
 
-\section*{Dependencies}
-This program uses the \texttt{pthread} library for multithreading.
+## Files
 
-\end{document}
+1. **`Graph.h`**:
+   - Defines the structure for a directed graph.
+
+2. **`Task.h`**:
+   - Defines the structure for tasks and functions to create and execute them.
+
+3. **`TopoSort_Dynamique.h`**:
+   - Declares functions for topological sorting, calculating earliest start times, and dynamic thread allocation.
+
+4. **`Graph.c`**:
+   - Implements functions related to the graph structure, including initialization and memory management.
+
+5. **`Task.c`**:
+   - Implements functions for task creation, graph integration, and multithreaded execution.
+
+6. **`TopoSort_Dynamique.c`**:
+   - Implements algorithms for topological sorting, earliest start time calculation, and dynamic thread management.
+
+7. **`Main.c`**:
+   - Demonstrates the complete scheduling system by initializing tasks, performing topological sorting, allocating threads, executing tasks, and displaying results.
+
+---
+
+## How to Use
+
+1. **Compile the Code**:
+   Use a C compiler such as `gcc`:
+   ```bash
+   gcc Main.c -o task_scheduler
+   ```
+
+2. **Run the Executable**:
+   ```bash
+   ./task_scheduler
+   ```
+
+3. **Customize Parameters**:
+   Adjust the parameters in the `main` function of `Main.c` to configure the number of tasks, threads, and other properties.
+
+---
+
+## Dependencies
+
+- **Pthread Library**:
+  - This program utilizes the `pthread` library for multithreading.
+
